@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docling-app
+  labels:
+    app: docling
+spec:
+  replicas: 2  # 根据需求调整副本数
+  selector:
+    matchLabels:
+      app: docling
+  template:
+    metadata:
+      labels:
+        app: docling
+    spec:
+      containers:
+      - name: docling
+        image: docling-demo:latest  # 替换为你的镜像地址
+        imagePullPolicy: IfNotPresent
+
+        env:
+        - name: DOCLING_CACHE_DIR
+          value: "/models"
+
+        # 方案 1: 使用镜像内置模型（无需挂载卷）
+        # 注释掉下面的 volumeMounts 即可
+
+        # 方案 2: 使用共享 PVC（推荐用于生产环境）
+        volumeMounts:
+        - name: models
+          mountPath: /models
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+        # 健康检查（根据实际应用调整）
+        # livenessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: 8000
+        #   initialDelaySeconds: 30
+        #   periodSeconds: 10
+
+        # readinessProbe:
+        #   httpGet:
+        #     path: /ready
+        #     port: 8000
+        #   initialDelaySeconds: 10
+        #   periodSeconds: 5
+
+      # 方案 2: 挂载共享模型 PVC
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: docling-models-pvc
+
+      # 如果镜像在私有仓库
+      # imagePullSecrets:
+      # - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docling-service
+  labels:
+    app: docling
+spec:
+  selector:
+    app: docling
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP  # 或 LoadBalancer/NodePort，根据需求
+

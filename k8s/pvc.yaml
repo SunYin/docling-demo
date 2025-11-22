@@ -1,0 +1,41 @@
+apiVersion: v1
+      restartPolicy: OnFailure
+          claimName: docling-models-pvc
+        persistentVolumeClaim:
+      - name: models
+      volumes:
+          mountPath: /models
+        - name: models
+        volumeMounts:
+          value: "/models"
+        - name: DOCLING_CACHE_DIR
+        env:
+        command: ["python", "download_models.py"]
+        image: docling-demo:latest  # 使用已构建的镜像
+      - name: model-downloader
+      containers:
+    spec:
+  template:
+spec:
+    app: docling
+  labels:
+  name: docling-model-downloader
+metadata:
+kind: Job
+apiVersion: batch/v1
+# 可选: 如果需要预填充模型到 PV，可以创建一个 Job
+---
+  # storageClassName: nfs-client
+  # 如果使用特定的 StorageClass（如 NFS）
+      storage: 5Gi  # 根据模型大小调整
+    requests:
+  resources:
+    - ReadOnlyMany  # 多个 Pod 可以共享读取模型
+  accessModes:
+spec:
+    app: docling
+  labels:
+  name: docling-models-pvc
+metadata:
+kind: PersistentVolumeClaim
+
