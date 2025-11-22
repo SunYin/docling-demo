@@ -21,6 +21,8 @@ docling-demo/
 ├── Dockerfile              # Docker 镜像构建文件（模型预打包）
 ├── docker-compose.yml      # Docker Compose 配置
 ├── .dockerignore          # Docker 构建忽略文件
+├── build-docker.sh        # Docker 镜像快速构建脚本
+├── deploy-k8s.sh          # K8s 一键部署脚本
 ├── k8s/                   # Kubernetes 部署配置
 │   ├── deployment.yaml    # 应用部署配置
 │   └── pvc.yaml          # 持久卷声明（共享模型存储）
@@ -126,6 +128,16 @@ python download_models.py
 
 ### Docker 本地部署
 
+#### 快速开始（推荐）
+
+使用提供的脚本一键构建和测试：
+
+```bash
+./build-docker.sh
+```
+
+#### 手动构建
+
 #### 1. 构建镜像（模型预打包）
 
 ```bash
@@ -165,6 +177,18 @@ docker-compose down
 `docker-compose.yml` 已配置好两种方案，根据需求取消注释对应的挂载配置。
 
 ### Kubernetes 部署
+
+#### 快速开始（推荐）
+
+使用提供的脚本进行交互式部署：
+
+```bash
+./deploy-k8s.sh
+```
+
+脚本会引导您选择部署方案并自动完成部署。
+
+#### 手动部署
 
 #### 方案 1: 使用镜像内置模型（简单快速）
 
