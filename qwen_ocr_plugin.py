@@ -28,6 +28,12 @@ except ImportError:
 load_dotenv()
 
 
+class QwenOcrOptions(OcrOptions):
+    """Qwen VL OCR 选项"""
+    kind: str = "qwen"  # OCR 引擎类型标识
+    model_name: str = "qwen-vl-max"  # Qwen 模型名称
+
+
 class QwenOcrModel(BaseOcrModel):
     """
     Qwen VL OCR 模型 - 作为 Docling 管线的 OCR 引擎
@@ -35,12 +41,17 @@ class QwenOcrModel(BaseOcrModel):
     实现 BaseOcrModel 接口，可以直接集成到 Docling 处理管线中
     """
 
+    @staticmethod
+    def get_options_type():
+        """返回此 OCR 模型使用的选项类型"""
+        return QwenOcrOptions
+
     def __init__(
         self,
         enabled: bool = True,
         api_key: Optional[str] = None,
         model: str = "qwen-vl-max",
-        options: Optional[OcrOptions] = None,
+        options: Optional[QwenOcrOptions] = None,
         accelerator_options: Optional[AcceleratorOptions] = None,
         **kwargs
     ):
@@ -50,13 +61,13 @@ class QwenOcrModel(BaseOcrModel):
         Args:
             enabled: 是否启用
             api_key: DashScope API Key
-            model: Qwen VL 模型名称
+            model: Qwen VL 模型名称 (如果 options 中有指定，优先使用 options 中的)
             options: OCR 选项
             accelerator_options: 加速器选项
         """
         # 创建默认选项
         if options is None:
-            options = OcrOptions(lang=["en", "zh"])
+            options = QwenOcrOptions(lang=["en", "zh"])
         if accelerator_options is None:
             accelerator_options = AcceleratorOptions()
 
@@ -76,8 +87,14 @@ class QwenOcrModel(BaseOcrModel):
             )
 
         dashscope.api_key = self.api_key
-        self.model = model
-        print(f"✓ Qwen VL OCR Plugin initialized (model: {model})")
+        
+        # 优先使用 options 中的 model_name
+        if isinstance(options, QwenOcrOptions) and options.model_name:
+            self.model = options.model_name
+        else:
+            self.model = model
+            
+        print(f"✓ Qwen VL OCR Plugin initialized (model: {self.model})")
 
     def __call__(
         self,
@@ -204,4 +221,3 @@ __docling_plugin__ = {
     'description': 'Qwen VL OCR Engine for Docling',
     'model_class': QwenOcrModel,
 }
-

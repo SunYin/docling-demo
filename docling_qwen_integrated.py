@@ -14,25 +14,24 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, OcrOptions
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
-from docling.models.factories.ocr_factory import OcrFactory
+from docling.models.factories import get_ocr_factory
 
 # 导入自定义 Qwen OCR 插件
-from qwen_ocr_plugin import QwenOcrModel
+from qwen_ocr_plugin import QwenOcrModel, QwenOcrOptions
 
 
 def register_qwen_ocr():
     """注册 Qwen OCR 引擎到 Docling"""
     try:
-        # 尝试注册 Qwen OCR 引擎
-        # 注意：这需要 Docling 支持动态注册，如果不支持则使用手动注入方式
-        ocr_factory = OcrFactory()
+        # 获取全局 OCR 工厂实例 (使用默认 allow_external_plugins=False)
+        # 注意：必须使用 get_ocr_factory 获取单例，否则 StandardPdfPipeline 会创建新实例
+        ocr_factory = get_ocr_factory(allow_external_plugins=False)
 
         # 检查是否已注册
         if hasattr(ocr_factory, '_classes'):
             print("✓ 使用手动注册 Qwen OCR 引擎")
             # 直接添加到工厂的类字典中
-            from docling.datamodel.pipeline_options import OcrOptions
-            ocr_factory._classes[OcrOptions] = QwenOcrModel
+            ocr_factory._classes[QwenOcrOptions] = QwenOcrModel
 
         return True
     except Exception as e:
@@ -58,10 +57,14 @@ def create_qwen_pipeline(
     Returns:
         配置好的 DocumentConverter
     """
-    # 配置 OCR 选项
-    ocr_options = OcrOptions(
+    # 先注册 Qwen OCR 到工厂
+    register_qwen_ocr()
+
+    # 配置 OCR 选项 - 使用 QwenOcrOptions
+    ocr_options = QwenOcrOptions(
         lang=["en", "zh"],  # 支持英文和中文
         force_full_page_ocr=force_ocr,
+        model_name=model
     ) if ocr_enabled else None
 
     # 配置 PDF 管线
@@ -84,59 +87,8 @@ def create_qwen_pipeline(
         }
     )
 
-    # 手动注入 Qwen OCR 模型到管线
-    # 这是一个 workaround，因为 Docling 可能不支持外部插件注册
-    try:
-        # 创建 Qwen OCR 实例
-        qwen_ocr = QwenOcrModel(enabled=ocr_enabled, api_key=api_key, model=model)
-
-        # 注入到转换器的 OCR 处理步骤
-        # 注意：这里需要根据实际 Docling 版本调整
-        print("✓ Qwen VL OCR 已集成到 Docling 管线")
-
-        # 返回包装后的转换器
-        return QwenPipelineWrapper(converter, qwen_ocr, ocr_enabled)
-
-    except Exception as e:
-        print(f"⚠️  集成 Qwen OCR 失败: {e}")
-        print("   将使用标准 Docling OCR")
-        return converter
-
-
-class QwenPipelineWrapper:
-    """
-    Docling 管线包装器，注入 Qwen OCR 处理
-    """
-
-    def __init__(self, converter: DocumentConverter, qwen_ocr: QwenOcrModel, ocr_enabled: bool):
-        self.converter = converter
-        self.qwen_ocr = qwen_ocr
-        self.ocr_enabled = ocr_enabled
-
-    def convert(self, source: str, **kwargs):
-        """
-        转换文档，使用 Qwen OCR 处理
-        """
-        # 第一步：使用 Docling 进行文档解析（不用 OCR）
-        print("📄 Step 1: Docling 文档解析...")
-        result = self.converter.convert(source, **kwargs)
-
-        if self.ocr_enabled and result.document:
-            # 第二步：对需要 OCR 的页面使用 Qwen VL
-            print("🤖 Step 2: Qwen VL OCR 处理...")
-
-            # 获取所有页面
-            pages = list(result.document.pages)
-
-            if pages:
-                # 使用 Qwen OCR 处理页面
-                processed_pages = list(self.qwen_ocr(result, iter(pages)))
-
-                # 更新文档的页面
-                # 注意：这里简化处理，实际需要更新文档内容
-                print(f"✓ 已用 Qwen OCR 处理 {len(processed_pages)} 页")
-
-        return result
+    print("✓ Qwen VL OCR 已集成到 Docling 管线")
+    return converter
 
 
 def main():
@@ -241,4 +193,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
