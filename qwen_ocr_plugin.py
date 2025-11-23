@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 
 # Docling imports
 from docling.models.base_ocr_model import BaseOcrModel
-from docling.datamodel.base_models import Page, BoundingBox, TextCell, AssembledUnit
+from docling.datamodel.base_models import Page, AssembledUnit
+from docling_core.types.doc import BoundingBox, CoordOrigin
+from docling_core.types.doc.page import TextCell, BoundingRectangle
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import OcrOptions, AcceleratorOptions
 
@@ -128,22 +130,31 @@ class QwenOcrModel(BaseOcrModel):
 
                 if text:
                     # 创建 TextCell 包含 OCR 文本
+                    # 获取页面尺寸
+                    width = page.size.width if page.size else 1000
+                    height = page.size.height if page.size else 1000
+                    
+                    # 创建 BoundingRectangle
+                    rect = BoundingRectangle(
+                        r_x0=0, r_y0=0,
+                        r_x1=width, r_y1=0,
+                        r_x2=width, r_y2=height,
+                        r_x3=0, r_y3=height,
+                        coord_origin=CoordOrigin.TOPLEFT
+                    )
+                    
                     text_cell = TextCell(
                         text=text,
-                        bbox=BoundingBox(
-                            l=0,
-                            t=0,
-                            r=page.size.width if page.size else 1000,
-                            b=page.size.height if page.size else 1000
-                        )
+                        orig=text,  # 原始文本
+                        rect=rect,
+                        from_ocr=True,
+                        confidence=1.0
                     )
 
-                    # 创建或更新 assembled 字段
-                    if page.assembled is None:
-                        page.assembled = AssembledUnit(elements=[])
-
-                    # 将文本添加到 assembled 单元
-                    page.assembled.elements.append(text_cell)
+                    # 使用 BaseOcrModel 的 post_process_cells 方法更新页面
+                    # 这会将 OCR 结果合并到 page.parsed_page.textline_cells 中
+                    # 从而被后续的 LayoutModel 和 PageAssembleModel 正确处理
+                    self.post_process_cells([text_cell], page)
 
                     print(f"✓ Extracted {len(text)} characters from page {page.page_no}")
                 else:
