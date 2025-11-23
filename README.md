@@ -1,8 +1,41 @@
-# Docling Demo
+# Docling Demo - Qwen VL OCR 集成版
 
-这是一个使用 [Docling](https://github.com/DS4SD/docling) 的演示项目。
+这是一个使用 [Docling](https://github.com/DS4SD/docling) 的演示项目，**特别实现了 Qwen VL 作为 OCR 插件集成到 Docling 管线中**。
 
 Docling 是一个强大的文档处理工具，旨在简化文档解析和转换工作，特别适合用于生成式 AI (Gen AI) 和 RAG (检索增强生成) 应用。它可以将 PDF、Word、Excel、HTML 等多种格式转换为统一的结构化数据。
+
+## 🎉 最新功能：Qwen VL OCR 插件
+
+**我们实现了 Qwen VL 作为 Docling 管线的 OCR 引擎！**
+
+- ✅ **真正的管线集成**：Qwen VL 作为 Docling 的 OCR 组件运行
+- ✅ **保留文档结构**：完整保留表格、标题、段落等结构
+- ✅ **高准确度 OCR**：利用 Qwen VL 多模态大模型的强大能力
+- ✅ **标准插件接口**：实现 `BaseOcrModel` 接口，符合 Docling 规范
+
+### 快速开始
+
+```bash
+# 1. 测试插件
+python test_qwen_plugin.py
+
+# 2. 使用插件版（推荐）
+export DASHSCOPE_API_KEY="your-api-key"
+python docling_qwen_integrated.py document.pdf --force-ocr
+
+# 3. 查看完整文档
+cat PLUGIN_COMPLETE.md
+```
+
+### 三种实现方案
+
+| 方案 | 文件 | 推荐度 | 特点 |
+|------|------|--------|------|
+| **插件集成版** ⭐ | `docling_qwen_integrated.py` | ⭐⭐⭐⭐⭐ | Qwen 作为管线组件，保留完整结构 |
+| 后备方案版 | `docling_qwen_pipeline.py` | ⭐⭐⭐ | Docling 失败后用 Qwen 重新处理 |
+| 独立 Qwen 版 | `qwen_pdf_extractor.py` | ⭐⭐ | 完全独立处理，仅提取纯文本 |
+
+**详细对比**: 查看 [COMPARISON.md](COMPARISON.md)
 
 ## ✨ 主要特性
 
