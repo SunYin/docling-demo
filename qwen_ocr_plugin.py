@@ -2,10 +2,12 @@
 """
 Qwen VL OCR 插件 for Docling
 实现 BaseOcrModel 接口，作为 Docling 管线的一部分
+支持并行处理以提高速度
 """
 import os
 import tempfile
 from typing import Iterable, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from PIL import Image
 from dotenv import load_dotenv
@@ -104,7 +106,7 @@ class QwenOcrModel(BaseOcrModel):
         page_batch: Iterable[Page]
     ) -> Iterable[Page]:
         """
-        对页面批次进行 OCR 处理
+        对页面批次进行 OCR 处理（并行）
 
         这是 Docling 管线调用的主接口
 
@@ -115,56 +117,89 @@ class QwenOcrModel(BaseOcrModel):
         Yields:
             处理后的页面对象
         """
-        for page in page_batch:
-            try:
-                # 获取页面图片
-                if page.image is None:
-                    print(f"⚠️  Page {page.page_no} has no image, skipping OCR")
+        pages = list(page_batch)
+        
+        if not pages:
+            return
+        
+        print(f"🚀 并行处理 {len(pages)} 页...")
+        
+        # 使用线程池并行处理所有页面
+        with ThreadPoolExecutor(max_workers=len(pages)) as executor:
+            # 提交所有任务
+            future_to_page = {
+                executor.submit(self._process_single_page, page): page 
+                for page in pages
+            }
+            
+            # 按完成顺序收集结果
+            for future in as_completed(future_to_page):
+                page = future_to_page[future]
+                try:
+                    processed_page = future.result()
+                    yield processed_page
+                except Exception as e:
+                    print(f"❌ Error processing page {page.page_no}: {e}")
                     yield page
-                    continue
+    
+    def _process_single_page(self, page: Page) -> Page:
+        """
+        处理单个页面（在线程池中调用）
+        
+        Args:
+            page: 要处理的页面
+            
+        Returns:
+            处理后的页面
+        """
+        try:
+            # 获取页面图片
+            if page.image is None:
+                print(f"⚠️  Page {page.page_no} has no image, skipping OCR")
+                return page
 
-                print(f"🤖 Processing page {page.page_no} with Qwen VL OCR...")
+            print(f"🤖 Processing page {page.page_no} with Qwen VL OCR...")
 
-                # 使用 Qwen VL 进行 OCR
-                text = self._ocr_image(page.image)
+            # 使用 Qwen VL 进行 OCR
+            text = self._ocr_image(page.image)
 
-                if text:
-                    # 创建 TextCell 包含 OCR 文本
-                    # 获取页面尺寸
-                    width = page.size.width if page.size else 1000
-                    height = page.size.height if page.size else 1000
-                    
-                    # 创建 BoundingRectangle
-                    rect = BoundingRectangle(
-                        r_x0=0, r_y0=0,
-                        r_x1=width, r_y1=0,
-                        r_x2=width, r_y2=height,
-                        r_x3=0, r_y3=height,
-                        coord_origin=CoordOrigin.TOPLEFT
-                    )
-                    
-                    text_cell = TextCell(
-                        text=text,
-                        orig=text,  # 原始文本
-                        rect=rect,
-                        from_ocr=True,
-                        confidence=1.0
-                    )
+            if text:
+                # 创建 TextCell 包含 OCR 文本
+                # 获取页面尺寸
+                width = page.size.width if page.size else 1000
+                height = page.size.height if page.size else 1000
+                
+                # 创建 BoundingRectangle
+                rect = BoundingRectangle(
+                    r_x0=0, r_y0=0,
+                    r_x1=width, r_y1=0,
+                    r_x2=width, r_y2=height,
+                    r_x3=0, r_y3=height,
+                    coord_origin=CoordOrigin.TOPLEFT
+                )
+                
+                text_cell = TextCell(
+                    text=text,
+                    orig=text,  # 原始文本
+                    rect=rect,
+                    from_ocr=True,
+                    confidence=1.0
+                )
 
-                    # 使用 BaseOcrModel 的 post_process_cells 方法更新页面
-                    # 这会将 OCR 结果合并到 page.parsed_page.textline_cells 中
-                    # 从而被后续的 LayoutModel 和 PageAssembleModel 正确处理
-                    self.post_process_cells([text_cell], page)
+                # 使用 BaseOcrModel 的 post_process_cells 方法更新页面
+                # 这会将 OCR 结果合并到 page.parsed_page.textline_cells 中
+                # 从而被后续的 LayoutModel 和 PageAssembleModel 正确处理
+                self.post_process_cells([text_cell], page)
 
-                    print(f"✓ Extracted {len(text)} characters from page {page.page_no}")
-                else:
-                    print(f"⚠️  No text extracted from page {page.page_no}")
+                print(f"✓ Extracted {len(text)} characters from page {page.page_no}")
+            else:
+                print(f"⚠️  No text extracted from page {page.page_no}")
 
-                yield page
+            return page
 
-            except Exception as e:
-                print(f"❌ Error processing page {page.page_no}: {e}")
-                yield page
+        except Exception as e:
+            print(f"❌ Error processing page {page.page_no}: {e}")
+            return page
 
     def _ocr_image(self, image: Image.Image, prompt: Optional[str] = None) -> str:
         """
