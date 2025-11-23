@@ -17,7 +17,14 @@ Docling 是一个强大的文档处理工具，旨在简化文档解析和转换
 ```
 docling-demo/
 ├── quickstart.py           # 基础使用示例
-├── download_models.py      # 预下载模型脚本
+├── quickstart_hybrid.py    # 混合方案（Docling + Qwen VLM）
+├── download_models.py      # 预下载 Docling 模型脚本
+├── qwen_pdf_extractor.py   # Qwen VLM PDF 提取器
+├── process_resume.py       # 简历处理专用脚本
+├── requirements.txt        # Python 依赖
+├── .env.example           # 环境变量配置示例
+├── .gitignore            # Git 忽略文件
+├── QWEN_GUIDE.md        # Qwen VLM 详细使用指南
 ├── Dockerfile              # Docker 镜像构建文件（模型预打包）
 ├── docker-compose.yml      # Docker Compose 配置
 ├── .dockerignore          # Docker 构建忽略文件
@@ -113,6 +120,67 @@ Docling 使用 AI 模型进行文档解析（布局识别、表格检测等）�
 ```bash
 python download_models.py
 ```
+
+## 🤖 处理受保护 PDF（Qwen VLM 方案）
+
+**问题**：某些 PDF 无法直接提取文字，例如：
+- ❌ 扫描件（图片格式的 PDF）
+- ❌ 有安全限制/加密的 PDF
+- ❌ 复杂排版的简历文档
+
+**解决方案**：使用 Qwen（通义千问）视觉大模型 API
+
+### 快速开始
+
+#### 1. 配置 API Key
+
+```bash
+# 获取 API Key: https://dashscope.console.aliyun.com/apiKey
+cp .env.example .env
+# 编辑 .env 文件，填入: DASHSCOPE_API_KEY=sk-your-key
+```
+
+#### 2. 处理简历 PDF
+
+```bash
+# 处理简历（自动识别文字和排版）
+python process_resume.py /Users/sunyin/Desktop/潘易_Android_简历.pdf
+
+# 输出: 潘易_Android_简历_提取.md
+```
+
+#### 3. 通用 PDF 处理
+
+```bash
+# 基础用法
+python qwen_pdf_extractor.py your_document.pdf -o output.md
+
+# 使用快速模型（降低成本）
+python qwen_pdf_extractor.py your_document.pdf --model qwen-vl-plus
+```
+
+#### 4. 智能混合方案
+
+```bash
+# 优先使用 Docling（免费），失败自动切换 Qwen VLM
+python quickstart_hybrid.py
+```
+
+### 方案对比
+
+| 方案 | 成本 | 速度 | 适用场景 |
+|------|------|------|----------|
+| **Docling** | 免费 | 快（首次需下载模型） | 普通 PDF、有文字层 |
+| **Qwen VLM** | 收费（约¥0.01/页） | 中等 | 扫描件、受保护 PDF、简历 |
+| **混合方案** | 按需 | 智能 | 自动选择最优方案 |
+
+### 费用说明
+
+- `qwen-vl-plus`: ¥0.008/千 tokens（快速、经济）
+- `qwen-vl-max`: ¥0.02/千 tokens（精确、推荐）
+- 1 页 PDF ≈ 500-1000 tokens ≈ ¥0.01-0.02
+
+📖 **详细使用指南**：查看 [QWEN_GUIDE.md](QWEN_GUIDE.md)
 
 ## 🐳 容器化部署
 
@@ -335,4 +403,3 @@ A: 根据规模选择：
 ## 📝 License
 
 本项目为演示项目，遵循 MIT License。Docling 库本身遵循 [MIT License](https://github.com/DS4SD/docling/blob/main/LICENSE)。
-

@@ -1,0 +1,33 @@
+# 环境变量和密钥
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PDF 和输出文件
+*.pdf
+*_output.md
+*_提取.md
+
+# 日志
+*.log
+
