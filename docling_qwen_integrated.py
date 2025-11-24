@@ -43,7 +43,7 @@ def create_qwen_pipeline(
     ocr_enabled: bool = True,
     force_ocr: bool = False,
     api_key: Optional[str] = None,
-    model: str = "qwen-vl-max"
+    model: str = "qwen-vl-plus"
 ) -> DocumentConverter:
     """
     创建使用 Qwen VL OCR 的 Docling 管线
@@ -115,7 +115,7 @@ def main():
 
 环境变量:
   DASHSCOPE_API_KEY    阿里云 DashScope API Key
-  QWEN_MODEL          Qwen 模型名称 (默认: qwen-vl-max)
+  QWEN_MODEL          Qwen 模型名称 (默认: qwen-vl-plus)
         """
     )
 
@@ -123,7 +123,7 @@ def main():
     parser.add_argument("--output", "-o", help="输出 Markdown 文件路径")
     parser.add_argument("--force-ocr", action="store_true", help="强制 OCR 所有页面")
     parser.add_argument("--no-ocr", action="store_true", help="禁用 OCR")
-    parser.add_argument("--model", default="qwen-vl-max", help="Qwen 模型名称")
+    parser.add_argument("--model", default="qwen-vl-plus", help="Qwen 模型名称")
     parser.add_argument("--preview-only", action="store_true", help="仅预览不保存")
 
     args = parser.parse_args()
